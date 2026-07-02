@@ -40,9 +40,6 @@ const Toolbar = () => {
       >
         <FaPaintBrush />
       </div>
-
-
-
       <div
         className={cx(classes.toolItem, {
           [classes.active]: activeToolItem === TOOL_ITEMS.LINE,
@@ -51,10 +48,6 @@ const Toolbar = () => {
       >
         <FaSlash />
       </div>
-
-
-
-      
       <div
         className={cx(classes.toolItem, {
           [classes.active]: activeToolItem === TOOL_ITEMS.RECTANGLE,
