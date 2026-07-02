@@ -27,6 +27,10 @@ exports.updateCanvas = async (req, res) => {
         const userId = req.userId;
         console.log("canvas id ", canvasId)
 
+        if (!mongoose.Types.ObjectId.isValid(canvasId)) {
+            return res.status(400).json({ error: "Invalid canvas ID" });
+        }
+
         const canvas = await Canvas.findById(canvasId);
         if (!canvas) {
             return res.status(404).json({ error: "Canvas not found" });
@@ -53,6 +57,10 @@ exports.loadCanvas = async (req, res) => {
     try {
         const canvasId = req.params.id;
         const userId = req.userId;
+
+        if (!mongoose.Types.ObjectId.isValid(canvasId)) {
+            return res.status(400).json({ error: "Invalid canvas ID" });
+        }
 
         const canvas = await Canvas.findById(canvasId);
         if (!canvas) {

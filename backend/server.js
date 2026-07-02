@@ -9,6 +9,11 @@ const Canvas = require("./models/canvasModel");
 const jwt = require("jsonwebtoken");
 const SECRET_KEY = process.env.JWT_SECRET
 
+if (!SECRET_KEY) {
+  console.error("❌ Missing JWT_SECRET environment variable. Set it before starting the server.");
+  process.exit(1);
+}
+
 
 const userRoutes = require("./routes/userRoutes");
 const canvasRoutes = require("./routes/canvasRoutes");
@@ -75,6 +80,9 @@ io.on("connection", (socket) => {
         // socket.emit("authorized");
   
         socket.join(canvasId);
+        // Remember which canvases this socket is actually authorized to write to
+        socket.authorizedCanvases = socket.authorizedCanvases || new Set();
+        socket.authorizedCanvases.add(canvasId);
         console.log(`User ${socket.id} joined canvas ${canvasId}`);
   
         if (canvasData[canvasId]) {
@@ -91,6 +99,13 @@ io.on("connection", (socket) => {
 
     socket.on("drawingUpdate", async ({ canvasId, elements }) => {
         try {
+          // Reject updates for canvases this socket never authenticated/joined into
+          if (!socket.authorizedCanvases || !socket.authorizedCanvases.has(canvasId)) {
+            console.log(`Rejected unauthorized drawingUpdate for canvas ${canvasId} from ${socket.id}`);
+            socket.emit("unauthorized", { message: "You are not authorized to update this canvas." });
+            return;
+          }
+
           canvasData[canvasId] = elements;
     
           socket.to(canvasId).emit("receiveDrawingUpdate", elements);
