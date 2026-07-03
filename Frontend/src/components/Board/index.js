@@ -4,7 +4,7 @@ import boardContext from "../../store/board-context";
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from "../../constants";
 import toolboxContext from "../../store/toolbox-context";
 import API_BASE_URL from "../../config";
-import socket from "../../utils/socket";
+import socket, { reconnectSocket } from "../../utils/socket";
 
 import classes from "./index.module.css";
 
@@ -41,6 +41,11 @@ function Board({ id }) {
 
   useEffect(() => {
     if (id) {
+      // Reconnect with the current token before joining, in case the token
+      // in localStorage has changed (e.g. user just logged in) since the
+      // socket module first loaded.
+      reconnectSocket();
+
       // Join the canvas room (no need for userId)
       socket.emit("joinCanvas", { canvasId: id });
 
