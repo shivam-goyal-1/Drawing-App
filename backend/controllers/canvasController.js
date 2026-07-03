@@ -37,7 +37,7 @@ exports.updateCanvas = async (req, res) => {
         }
 
         // Ensure only the owner or shared users can update
-        if (canvas.owner.toString() !== userId && !canvas.shared.includes(userId)) {
+        if (canvas.owner.toString() !== userId && !canvas.shared.some(sharedId => sharedId.toString() === userId)) {
             return res.status(403).json({ error: "Unauthorized to update this canvas" });
         }
 
@@ -68,7 +68,7 @@ exports.loadCanvas = async (req, res) => {
         }
 
         // Ensure only the owner or shared users can access it
-        if (canvas.owner.toString() !== userId && !canvas.shared.includes(userId)) {
+        if (canvas.owner.toString() !== userId && !canvas.shared.some(sharedId => sharedId.toString() === userId)) {
             return res.status(403).json({ error: "Unauthorized to access this canvas" });
         }
 
