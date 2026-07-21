@@ -20,6 +20,35 @@ const socket = io(API_BASE_URL, {
   auth: { token: getAuthToken() },
 });
 
+// Tracks whichever canvas the app currently wants to be joined to.
+// WHY THIS EXISTS: authorizedCanvases (server-side) lives on one specific
+// socket connection. If that connection ever drops and Socket.IO
+// auto-reconnects (network blip, tab backgrounded, Render free-tier
+// instance spinning back up after idling - all of which are normal,
+// not exceptional), the server gives the client a brand-new socket
+// instance with an empty authorizedCanvases set. Emitting "joinCanvas"
+// only once, on mount, never re-fires when that silent reconnect
+// happens - so every drawingUpdate after it gets rejected as
+// unauthorized even though the user did nothing wrong.
+let currentCanvasId = null;
+
+// Re-join on EVERY connect - the first one and any automatic reconnect.
+socket.on("connect", () => {
+  if (currentCanvasId) {
+    socket.emit("joinCanvas", { canvasId: currentCanvasId });
+  }
+});
+
+// Call this instead of emitting "joinCanvas" directly.
+export const joinCanvasRoom = (canvasId) => {
+  currentCanvasId = canvasId;
+  if (socket.connected) {
+    socket.emit("joinCanvas", { canvasId });
+  }
+  // If not connected yet, the "connect" handler above will emit it
+  // as soon as the connection completes - no need to duplicate here.
+};
+
 // Call this right after login/register succeed, and whenever the Board
 // mounts, to guarantee the socket is using the current localStorage token
 // instead of a stale one captured back when the app first loaded.
