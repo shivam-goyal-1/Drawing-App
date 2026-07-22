@@ -34,9 +34,15 @@ let currentCanvasId = null;
 
 // Re-join on EVERY connect - the first one and any automatic reconnect.
 socket.on("connect", () => {
+  console.log(`[socket] CONNECTED id=${socket.id} at ${new Date().toISOString()}, currentCanvasId=${currentCanvasId}`);
   if (currentCanvasId) {
     socket.emit("joinCanvas", { canvasId: currentCanvasId });
+    console.log(`[socket] emitted joinCanvas for ${currentCanvasId} on socket ${socket.id}`);
   }
+});
+
+socket.on("disconnect", (reason) => {
+  console.log(`[socket] DISCONNECTED reason=${reason} at ${new Date().toISOString()}`);
 });
 
 // Call this instead of emitting "joinCanvas" directly.

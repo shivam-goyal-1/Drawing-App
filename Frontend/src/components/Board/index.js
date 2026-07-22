@@ -4,7 +4,7 @@ import boardContext from "../../store/board-context";
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from "../../constants";
 import toolboxContext from "../../store/toolbox-context";
 import API_BASE_URL from "../../config";
-import socket, { reconnectSocket } from "../../utils/socket";
+import socket, { reconnectSocket, joinCanvasRoom } from "../../utils/socket";
 
 import classes from "./index.module.css";
 
@@ -46,8 +46,10 @@ function Board({ id }) {
       // socket module first loaded.
       reconnectSocket();
 
-      // Join the canvas room (no need for userId)
-      socket.emit("joinCanvas", { canvasId: id });
+      // Join the canvas room (no need for userId). Using joinCanvasRoom
+      // instead of a raw emit means the socket module will automatically
+      // re-emit this join if the connection ever drops and reconnects.
+      joinCanvasRoom(id);
 
       // Listen for updates from other users
       socket.on("receiveDrawingUpdate", (updatedElements) => {
@@ -173,6 +175,7 @@ function Board({ id }) {
   const handleMouseMove = (event) => {
     if (!isAuthorized) return;
     boardMouseMoveHandler(event);
+    console.log(`[draw] emitting drawingUpdate for ${id} on socket ${socket.id}, connected=${socket.connected}`);
     socket.emit("drawingUpdate", { canvasId: id, elements });
   };
 
