@@ -1,58 +1,61 @@
-const User = require("../models/userModel");
+const userModel = require("../models/userModel");
 const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../config/jwtSecret");
 
-const SECRET_KEY = process.env.JWT_SECRET
-
-// Register User
-exports.registerUser = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({ error: "All fields are required" });
-        }
-
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: "User already exists" });
-        }
-
-        const newUser = new User({ email, password });
-        await newUser.save();
-
-        res.status(201).json({ message: "User registered successfully!" });
-    } catch (error) {
-        res.status(500).json({ error: "Registration failed", details: error.message });
-    }
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const newUser = await userModel.register(name, email, password);
+    res.status(201).json(newUser);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
-// Login User
-exports.loginUser = async (req, res) => {
-    try {
-        const { email, password } = req.body;
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ error: "Invalid credentials" });
+    const user = await userModel.login(email, password);
 
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+    const token = jwt.sign({ email: user.email }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-        const token = jwt.sign({ userId: user._id }, SECRET_KEY, { expiresIn: "7d" });
-
-        res.json({ message: "Login successful", token });
-    } catch (error) {
-        res.status(500).json({ error: "Login failed", details: error.message });
-    }
+    res.status(200).json({
+      message: "Login successful",
+      token,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
 };
 
-// Get User Details
-exports.getUser = async (req, res) => {
-    try {
-        const user = await User.findById(req.userId).select("-password");
-        if (!user) return res.status(404).json({ error: "User not found" });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to get user", details: error.message });
+const getUserProfile = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "Authorization token required",
+      });
     }
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await userModel.getUser(decoded.email);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(401).json({
+      message: "Invalid or expired token",
+      error: error.message,
+    });
+  }
 };
+
+module.exports = { registerUser, loginUser, getUserProfile };

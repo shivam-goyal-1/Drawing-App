@@ -103,8 +103,7 @@ export const isPointNearElement = (element, pointX, pointY) => {
         isPointCloseToLine(x1, y2, x1, y1, pointX, pointY)
       );
     case TOOL_ITEMS.BRUSH:
-      const elPath = new Path2D(getSvgPathFromStroke(getStroke(element.points)));
-      return context.isPointInPath(elPath, pointX, pointY);
+      return context.isPointInPath(element.path, pointX, pointY);
     case TOOL_ITEMS.TEXT:
       context.font = `${element.size}px Caveat`;
       context.fillStyle = element.stroke;
@@ -150,4 +149,33 @@ export const getSvgPathFromStroke = (stroke) => {
 
   d.push("Z");
   return d.join(" ");
+};
+
+// Unique numeric id per element, so elements created by different
+// clients never collide (it used to be `elements.length`, which
+// broke as soon as two people drew "at the same time").
+export const generateElementId = () =>
+  Date.now() * 1000 + Math.floor(Math.random() * 1000);
+
+// Rebuilds the non-serializable `path` (Path2D) for a brush element
+// from its `points`. Needed on initial load from the DB and for
+// brush elements arriving over the socket.
+export const rehydrateElement = (element) => {
+  if (element.type === TOOL_ITEMS.BRUSH) {
+    return {
+      ...element,
+      path: new Path2D(getSvgPathFromStroke(getStroke(element.points))),
+    };
+  }
+  return element;
+};
+
+// Strips the non-serializable `path` before sending a brush element
+// over the socket (Path2D silently turns into "{}" over JSON).
+export const serializeElement = (element) => {
+  if (element.type === TOOL_ITEMS.BRUSH) {
+    const { path, ...rest } = element;
+    return rest;
+  }
+  return element;
 };

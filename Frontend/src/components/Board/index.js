@@ -1,25 +1,14 @@
-import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef } from "react";
 import rough from "roughjs";
 import boardContext from "../../store/board-context";
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from "../../constants";
 import toolboxContext from "../../store/toolbox-context";
-import API_BASE_URL from "../../config";
-import socket, { reconnectSocket, joinCanvasRoom } from "../../utils/socket";
 
 import classes from "./index.module.css";
 
-import {
-  getSvgPathFromStroke,
-} from "../../utils/element";
-import getStroke from "perfect-freehand";
-import axios from "axios";
-
-
-function Board({ id }) {
+function Board() {
   const canvasRef = useRef();
   const textAreaRef = useRef();
-  console.log(id)
-
   const {
     elements,
     toolActionType,
@@ -29,73 +18,10 @@ function Board({ id }) {
     textAreaBlurHandler,
     undo,
     redo,
-    setCanvasId,
-    setElements,
-    setHistory
   } = useContext(boardContext);
   const { toolboxState } = useContext(toolboxContext);
 
-  const token = localStorage.getItem("whiteboard_user_token");
-
-  const [isAuthorized, setIsAuthorized] = useState(true);
-
-  useEffect(() => {
-    if (id) {
-      // Reconnect with the current token before joining, in case the token
-      // in localStorage has changed (e.g. user just logged in) since the
-      // socket module first loaded.
-      reconnectSocket();
-
-      // Join the canvas room (no need for userId). Using joinCanvasRoom
-      // instead of a raw emit means the socket module will automatically
-      // re-emit this join if the connection ever drops and reconnects.
-      joinCanvasRoom(id);
-
-      // Listen for updates from other users
-      socket.on("receiveDrawingUpdate", (updatedElements) => {
-        setElements(updatedElements);
-      });
-
-      // Load initial canvas data
-      socket.on("loadCanvas", (initialElements) => {
-        setElements(initialElements);
-      });
-
-      socket.on("unauthorized", (data) => {
-        console.log(data.message);
-        alert("Access Denied: You cannot edit this canvas.");
-        setIsAuthorized(false);
-      });
-
-      return () => {
-        socket.off("receiveDrawingUpdate");
-        socket.off("loadCanvas");
-        socket.off("unauthorized");
-      };
-    }
-  }, [id]);
-
-  useEffect(() => {
-    const fetchCanvasData = async () => {
-      if (id && token) {
-        try {
-          const response = await axios.get(`${API_BASE_URL}/api/canvas/load/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setCanvasId(id); // Set the current canvas ID
-          setElements(response.data.elements); // Set the fetched elements
-          setHistory(response.data.elements); // Set the fetched elements
-        } catch (error) {
-          console.error("Error loading canvas:", error);
-        } finally {
-        }
-      }
-    };
-
-    fetchCanvasData();
-  }, [id, token]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -134,8 +60,7 @@ function Board({ id }) {
           break;
         case TOOL_ITEMS.BRUSH:
           context.fillStyle = element.stroke;
-          const path = new Path2D(getSvgPathFromStroke(getStroke(element.points)));
-          context.fill(path);
+          context.fill(element.path);
           context.restore();
           break;
         case TOOL_ITEMS.TEXT:
@@ -155,7 +80,6 @@ function Board({ id }) {
     };
   }, [elements]);
 
-
   useEffect(() => {
     const textarea = textAreaRef.current;
     if (toolActionType === TOOL_ACTION_TYPES.WRITING) {
@@ -165,24 +89,16 @@ function Board({ id }) {
     }
   }, [toolActionType]);
 
-  // console.log("Elements ",elements);
-
   const handleMouseDown = (event) => {
-    if (!isAuthorized) return;
     boardMouseDownHandler(event, toolboxState);
   };
 
   const handleMouseMove = (event) => {
-    if (!isAuthorized) return;
     boardMouseMoveHandler(event);
-    console.log(`[draw] emitting drawingUpdate for ${id} on socket ${socket.id}, connected=${socket.connected}`);
-    socket.emit("drawingUpdate", { canvasId: id, elements });
   };
 
   const handleMouseUp = () => {
-    if (!isAuthorized) return;
     boardMouseUpHandler();
-    socket.emit("drawingUpdate", { canvasId: id, elements });
   };
 
   return (

@@ -1,39 +1,31 @@
-import axios from "axios";
-import API_BASE_URL from "../config";
+// Call a PUT API to update the canvas on URL /canvas/:id
 
-const BASE = API_BASE_URL;
-const CANVAS_API = `${BASE}/api/canvas`;
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:3030'}/canvases`;
+export const updateCanvas = async (id, elements) => {
+    try {
+        const token = localStorage.getItem('token');
 
-const token = localStorage.getItem("whiteboard_user_token");
+        if (!token) {
+            throw new Error('Unauthorized');
+        }
 
-export const updateCanvas = async (canvasId, elements) => {
-  try {
-    const response = await axios.put(
-      `${CANVAS_API}/update`,
-      { canvasId, elements },
-      {
-        headers: {
-          Authorization: token,
-        },
-      }
-    );
-    console.log("Canvas updated successfully!", response.data);
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
-};
+        const response = await fetch(`${API_BASE_URL}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ elements }),
+        });
 
-export const fetchInitialCanvasElements = async (canvasId) => {
-  try {
-    const response = await axios.get(`${CANVAS_API}/load/${canvasId}`, {
-      headers: {
-        Authorization: token,
-      },
-    });
+        const data = await response.json();
 
-    return response.data.elements;
-  } catch (error) {
-    console.error("Error fetching initial canvas elements:", error);
-  }
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update canvas');
+        }
+
+        return data;
+    } catch (error) {
+        throw new Error(error.message || 'Failed to update canvas');
+    }
 };
